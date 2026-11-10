@@ -1,7 +1,6 @@
 package telem;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import org.json.JSONObject;
 
 /**
@@ -10,7 +9,7 @@ import org.json.JSONObject;
  * Alquiler
  */
 public class Alquiler {
-    
+
     private Vehiculo vehiculo;
     private Cliente cliente;
     private LocalDate fechaInicio;
@@ -21,7 +20,7 @@ public class Alquiler {
     public static final int PRECIO_BASE = 50;
     private static int contadorAlquileres = 0;
 
-    public Alquiler(Vehiculo vehiculo, Cliente cliente, LocalDate fechaInicio,LocalDate fechaFin) {
+    public Alquiler(Vehiculo vehiculo, Cliente cliente, LocalDate fechaInicio, LocalDate fechaFin) {
         this.vehiculo = vehiculo;
         this.cliente = cliente;
         this.fechaInicio = fechaInicio;
@@ -29,7 +28,7 @@ public class Alquiler {
     }
 
     public static Alquiler[] obtenerAlquileres() {
-        return alquileres; 
+        return alquileres;
     }
 
     public static void agregarAlquiler(Alquiler alquiler) {
@@ -49,7 +48,7 @@ public class Alquiler {
         return cliente;
     }
 
-    public LocalDate  getFechaInicio() {
+    public LocalDate getFechaInicio() {
         return fechaInicio;
     }
 
@@ -57,30 +56,44 @@ public class Alquiler {
         return fechaFin;
     }
 
-    public int calcularPrecioAlquiler(LocalDate fechaInicio, LocalDate fechaFin) {
-    // +1 to include the start day
-    int dias = (int) ChronoUnit.DAYS.between(fechaInicio, fechaFin) + 1;
-    return dias * PRECIO_BASE;
-}
+    public int calcularPrecioAlquiler(LocalDate fechaInicio, LocalDate fechaFin,
+                                      PoliticasDePrecios politica, Vehiculo vehiculo) {
+        ICalculadorPrecio calculador;
+        switch (politica) {
+            case TemporadaAlta:
+                calculador = new CalculadorPrecioTemporadaAlta();
+                break;
+            case ClienteFrecuente:
+                calculador = new CalculadorPrecioClienteFrecuente();
+                break;
+            case Oferton:
+                calculador = new CalculadorPrecioOferton();
+                break;
+            case Normal:
+            default:
+                calculador = new CalculadorPrecioNormal();
+                break;
+        }
+        return calculador.calcularPrecioAlquiler(fechaInicio, fechaFin, vehiculo);
+    }
 
-    @Override 
+    @Override
     public String toString() {
         return new JSONObject(this).toString();
     }
 
-   public static void main(String[] args) {
-    Vehiculo vehiculo1 = new Turismo("ABC123", Categoria.NORMAL, 2020, 5, 400.0);
-    Cliente cliente1 = new Cliente("Juan Pérez", "123456789");
-    LocalDate hoy = LocalDate.now();
-    Alquiler alquiler1 =
-        new Alquiler(vehiculo1, cliente1, hoy, hoy.plusDays(3));
-    System.out.println(alquiler1.toString());
-    System.out.println("-----------------------------------------------");
-    Vehiculo vehiculo2 =
-        new VehiculoIndustrial("ABC123", Categoria.NORMAL, 2020, 1000, 3);
-    Alquiler alquiler2 =
-        new Alquiler(vehiculo2, cliente1, hoy, hoy.plusDays(3));
-    System.out.println(alquiler2.toString());
-    System.out.println("-----------------------------------------------");
+    public static void main(String[] args) {
+        Vehiculo vehiculo1 = new Turismo("ABC123", Categoria.NORMAL, 2020, 5, 400.0);
+        Cliente cliente1 = new Cliente("Juan Pérez", "123456789");
+        LocalDate hoy = LocalDate.now();
+        Alquiler alquiler1 = new Alquiler(vehiculo1, cliente1, hoy, hoy.plusDays(3));
+        System.out.println(alquiler1.toString());
+        System.out.println("-----------------------------------------------");
+        for (PoliticasDePrecios p : PoliticasDePrecios.values()) {
+            int precio = alquiler1.calcularPrecioAlquiler(
+                    alquiler1.getFechaInicio(), alquiler1.getFechaFin(), p, vehiculo1);
+            System.out.println("Política " + p + ": " + precio + " euros");
+        }
+    }
 }
-}
+    
