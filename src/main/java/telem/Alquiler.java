@@ -56,24 +56,9 @@ public class Alquiler {
         return fechaFin;
     }
 
-    public int calcularPrecioAlquiler(LocalDate fechaInicio, LocalDate fechaFin,
+       public int calcularPrecioAlquiler(LocalDate fechaInicio, LocalDate fechaFin,
                                       PoliticasDePrecios politica, Vehiculo vehiculo) {
-        ICalculadorPrecio calculador;
-        switch (politica) {
-            case TemporadaAlta:
-                calculador = new CalculadorPrecioTemporadaAlta();
-                break;
-            case ClienteFrecuente:
-                calculador = new CalculadorPrecioClienteFrecuente();
-                break;
-            case Oferton:
-                calculador = new CalculadorPrecioOferton();
-                break;
-            case Normal:
-            default:
-                calculador = new CalculadorPrecioNormal();
-                break;
-        }
+        ICalculadorPrecio calculador = FactoriaCalculadoresPrecio.getCalculador(politica);
         return calculador.calcularPrecioAlquiler(fechaInicio, fechaFin, vehiculo);
     }
 
