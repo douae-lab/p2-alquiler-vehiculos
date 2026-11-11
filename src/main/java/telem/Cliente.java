@@ -16,6 +16,13 @@ public class Cliente {
         this.dni = dni;
     }
 
+    /** Deserialización: construye el cliente a partir de su JSON. */
+    public Cliente(String jsonString) {
+        JSONObject json = new JSONObject(jsonString);
+        this.nombre = json.getString("nombre");
+        this.dni = json.getString("dni");
+    }
+
     public String getNombre() {
         return nombre;
     }
@@ -24,7 +31,7 @@ public class Cliente {
         return dni;
     }
 
-    @Override 
+    @Override
     public String toString() {
         return new JSONObject(this).toString();
     }

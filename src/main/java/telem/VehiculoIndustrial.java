@@ -15,6 +15,13 @@ public class VehiculoIndustrial extends Vehiculo {
         this.numeroEjes = numeroEjes;
     }
 
+    public VehiculoIndustrial(String jsonString) {
+        super(jsonString);
+        JSONObject json = new JSONObject(jsonString);
+        this.capacidadCarga = json.getInt("capacidadCarga");
+        this.numeroEjes = json.getInt("numeroEjes");
+    }
+
     public int getCapacidadCarga() {
         return capacidadCarga;
     }
@@ -23,10 +30,11 @@ public class VehiculoIndustrial extends Vehiculo {
         return numeroEjes;
     }
 
-    @Override 
+    @Override
     public String toString() {
         return new JSONObject(this).toString();
     }
+
     @Override
     public String getTipo() {
         return "VehiculoIndustrial";
@@ -48,4 +56,4 @@ public class VehiculoIndustrial extends Vehiculo {
         }
         return precioBase;
     }
-}   
+}
