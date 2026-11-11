@@ -1,11 +1,21 @@
 package telem;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDate;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class GestorAlquileres {
 
     /** Nº mínimo de alquileres previos para considerar a un cliente frecuente. */
     private static final int UMBRAL_CLIENTE_FRECUENTE = 3;
+
+    /** Fichero que usa el menú para guardar y cargar los datos. */
+    public static final String FICHERO_POR_DEFECTO = "alquileres.json";
 
     private int contadorAlquileres = 0;
     private Alquiler[] alquileres = new Alquiler[1000];
@@ -56,7 +66,25 @@ public class GestorAlquileres {
     }
 
     /////////////////////////////////////////////////////////////////////////////////////
-    // MÉTODOS PARA GESTIONAR VEHÍCULOS
+    // MÉTODOS PARA GESTIONAR CLIENTES Y VEHÍCULOS
+
+    /** Devuelve los clientes registrados (sin posiciones vacías). */
+    public Cliente[] obtenerClientes() {
+        int contador = 0;
+        for (Cliente c : clientes) {
+            if (c != null) {
+                contador++;
+            }
+        }
+        Cliente[] resultado = new Cliente[contador];
+        int j = 0;
+        for (Cliente c : clientes) {
+            if (c != null) {
+                resultado[j++] = c;
+            }
+        }
+        return resultado;
+    }
 
     public Vehiculo[] obtenerVehiculos(String tipo) {
 
@@ -235,6 +263,120 @@ public class GestorAlquileres {
         return false;
     }
 
+    /////////////////////////////////////////////////////////////////////////////////////
+    // PERSISTENCIA EN FICHERO DE TEXTO (JSON)
+
+    /**
+     * Guarda clientes, vehículos y alquileres en un fichero de texto en formato JSON.
+     * @param ruta ruta del fichero (se crea o se sobrescribe)
+     * @throws IOException si no se puede escribir el fichero
+     */
+    public void guardar(String ruta) throws IOException {
+        JSONArray jsonClientes = new JSONArray();
+        for (Cliente c : clientes) {
+            if (c != null) {
+                jsonClientes.put(new JSONObject(c.toString()));
+            }
+        }
+
+        JSONArray jsonVehiculos = new JSONArray();
+        for (Vehiculo v : vehiculos) {
+            if (v != null) {
+                jsonVehiculos.put(new JSONObject(v.toString()));
+            }
+        }
+
+        JSONArray jsonAlquileres = new JSONArray();
+        for (int i = 0; i < contadorAlquileres; i++) {
+            JSONObject entrada = new JSONObject();
+            entrada.put("alquiler", new JSONObject(alquileres[i].toString()));
+            entrada.put("entregado", entregados[i]);
+            jsonAlquileres.put(entrada);
+        }
+
+        JSONObject raiz = new JSONObject();
+        raiz.put("clientes", jsonClientes);
+        raiz.put("vehiculos", jsonVehiculos);
+        raiz.put("alquileres", jsonAlquileres);
+
+        Files.write(Paths.get(ruta), raiz.toString(2).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Recupera los datos guardados con {@link #guardar(String)} y sustituye el estado actual.
+     * Si el fichero no existe o no es válido, el estado actual NO se modifica.
+     * @param ruta ruta del fichero
+     * @throws IOException si no se puede leer el fichero
+     * @throws org.json.JSONException si el contenido no es un JSON válido
+     * @throws IllegalArgumentException si los datos son incoherentes
+     */
+    public void cargar(String ruta) throws IOException {
+        String texto = new String(Files.readAllBytes(Paths.get(ruta)), StandardCharsets.UTF_8);
+        JSONObject raiz = new JSONObject(texto);
+
+        JSONArray jsonClientes = raiz.getJSONArray("clientes");
+        JSONArray jsonVehiculos = raiz.getJSONArray("vehiculos");
+        JSONArray jsonAlquileres = raiz.getJSONArray("alquileres");
+
+        if (jsonClientes.length() > clientes.length
+                || jsonVehiculos.length() > vehiculos.length
+                || jsonAlquileres.length() > alquileres.length) {
+            throw new IllegalArgumentException("El fichero tiene más datos de los que caben en el gestor");
+        }
+
+        // Todo se construye en estructuras temporales: si algo falla, no se toca el estado.
+        Cliente[] nuevosClientes = new Cliente[clientes.length];
+        for (int i = 0; i < jsonClientes.length(); i++) {
+            nuevosClientes[i] = FactoriaClientes.getCliente(jsonClientes.getJSONObject(i).toString());
+        }
+
+        Vehiculo[] nuevosVehiculos = new Vehiculo[vehiculos.length];
+        for (int i = 0; i < jsonVehiculos.length(); i++) {
+            nuevosVehiculos[i] = FactoriaVehiculos.getVehiculo(jsonVehiculos.getJSONObject(i).toString());
+        }
+
+        Alquiler[] nuevosAlquileres = new Alquiler[alquileres.length];
+        boolean[] nuevosEntregados = new boolean[alquileres.length];
+        for (int i = 0; i < jsonAlquileres.length(); i++) {
+            JSONObject entrada = jsonAlquileres.getJSONObject(i);
+            Alquiler leido = FactoriaAlquileres.getAlquiler(entrada.getJSONObject("alquiler").toString());
+
+            // El alquiler debe referirse a los objetos del gestor, no a copias.
+            Vehiculo v = buscarVehiculo(nuevosVehiculos, leido.getVehiculo().getMatricula());
+            Cliente c = buscarCliente(nuevosClientes, leido.getCliente().getDni());
+            if (v == null || c == null) {
+                throw new IllegalArgumentException(
+                        "Alquiler con cliente o vehículo que no existen en el fichero");
+            }
+            nuevosAlquileres[i] = new Alquiler(v, c, leido.getFechaInicio(), leido.getFechaFin());
+            nuevosEntregados[i] = entrada.getBoolean("entregado");
+        }
+
+        // Todo correcto: se sustituye el estado.
+        this.clientes = nuevosClientes;
+        this.vehiculos = nuevosVehiculos;
+        this.alquileres = nuevosAlquileres;
+        this.entregados = nuevosEntregados;
+        this.contadorAlquileres = jsonAlquileres.length();
+    }
+
+    private static Vehiculo buscarVehiculo(Vehiculo[] lista, String matricula) {
+        for (Vehiculo v : lista) {
+            if (v != null && v.getMatricula().equals(matricula)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private static Cliente buscarCliente(Cliente[] lista, String dni) {
+        for (Cliente c : lista) {
+            if (c != null && c.getDni().equals(dni)) {
+                return c;
+            }
+        }
+        return null;
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////
     // INTERFAZ DE USUARIO (CONSOLA) Y LÓGICA DE NEGOCIO
@@ -244,12 +386,32 @@ public class GestorAlquileres {
         while (true) {
 
             System.out.println("Gestión de Alquileres");
+            System.out.println("(G) Guardar datos en " + FICHERO_POR_DEFECTO);
+            System.out.println("(C) Cargar datos desde " + FICHERO_POR_DEFECTO);
             System.out.println("¿Desea salir de la app (S/N)?");
 
             char s = KeyBoard.readChar();
             if (s == 's' || s == 'S') {
                 System.out.println("Bye ...");
                 return;
+            }
+            if (s == 'g' || s == 'G') {
+                try {
+                    guardar(FICHERO_POR_DEFECTO);
+                    System.out.println("Datos guardados en " + FICHERO_POR_DEFECTO);
+                } catch (IOException e) {
+                    System.out.println("No se pudo guardar: " + e.getMessage());
+                }
+                continue;
+            }
+            if (s == 'c' || s == 'C') {
+                try {
+                    cargar(FICHERO_POR_DEFECTO);
+                    System.out.println("Datos cargados desde " + FICHERO_POR_DEFECTO);
+                } catch (IOException | RuntimeException e) {
+                    System.out.println("No se pudo cargar: " + e.getMessage());
+                }
+                continue;
             }
 
             Cliente cliente = identificarCliente();
