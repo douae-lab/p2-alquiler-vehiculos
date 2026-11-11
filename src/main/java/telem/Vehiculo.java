@@ -20,6 +20,15 @@ public abstract class Vehiculo {
         this.annio = annio;
     }
 
+    /** Deserialización: construye la parte común a partir del JSON. */
+    public Vehiculo(String jsonString) {
+        JSONObject json = new JSONObject(jsonString);
+        this.matricula = json.getString("matricula");
+        this.categoria = Categoria.valueOf(json.getString("categoria"));
+        this.annio = json.getInt("annio");
+        this.disponible = json.getBoolean("disponible");
+    }
+
     public String getMatricula() {
         return matricula;
     }
@@ -35,25 +44,26 @@ public abstract class Vehiculo {
     public boolean isDisponible() {
         return disponible;
     }
-    
+
     public void setDisponible(boolean disponible) {
         this.disponible = disponible;
     }
 
-    @Override 
+    @Override
     public String toString() {
         return new JSONObject(this).toString();
     }
-/**
- * En serialización/deserialización: para obtener el tipo de
- * vehículo (clase) del objeto.
- * @return El tipo de vehículo (sub-clase) del objeto.
- */
-public abstract String getTipo();
 
-/**
- * Calcula el precio base diario del vehículo según su categoría y tipo.
- * @return precio base diario del vehículo.
- */
-public abstract int getPrecioBase();
+    /**
+     * En serialización/deserialización: para obtener el tipo de
+     * vehículo (clase) del objeto.
+     * @return El tipo de vehículo (sub-clase) del objeto.
+     */
+    public abstract String getTipo();
+
+    /**
+     * Calcula el precio base diario del vehículo según su categoría y tipo.
+     * @return precio base diario del vehículo.
+     */
+    public abstract int getPrecioBase();
 }

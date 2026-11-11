@@ -27,6 +27,15 @@ public class Alquiler {
         this.fechaFin = fechaFin;
     }
 
+    /** Deserialización: reconstruye el alquiler (y su cliente y vehículo) desde el JSON. */
+    public Alquiler(String jsonString) {
+        JSONObject json = new JSONObject(jsonString);
+        this.vehiculo = FactoriaVehiculos.getVehiculo(json.getJSONObject("vehiculo").toString());
+        this.cliente = FactoriaClientes.getCliente(json.getJSONObject("cliente").toString());
+        this.fechaInicio = LocalDate.parse(json.getString("fechaInicio"));
+        this.fechaFin = LocalDate.parse(json.getString("fechaFin"));
+    }
+
     public static Alquiler[] obtenerAlquileres() {
         return alquileres;
     }
@@ -56,7 +65,7 @@ public class Alquiler {
         return fechaFin;
     }
 
-       public int calcularPrecioAlquiler(LocalDate fechaInicio, LocalDate fechaFin,
+    public int calcularPrecioAlquiler(LocalDate fechaInicio, LocalDate fechaFin,
                                       PoliticasDePrecios politica, Vehiculo vehiculo) {
         ICalculadorPrecio calculador = FactoriaCalculadoresPrecio.getCalculador(politica);
         return calculador.calcularPrecioAlquiler(fechaInicio, fechaFin, vehiculo);
@@ -81,4 +90,3 @@ public class Alquiler {
         }
     }
 }
-    
